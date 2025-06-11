@@ -181,6 +181,16 @@ export default function TimestampNotes() {
     }
   }, [copySuccess])
 
+  // Update notes display when timezone changes
+  useEffect(() => {
+    if (notes && timezones.length > 0) {
+      // This will trigger a re-render with updated timestamps
+      const processedNotes = processNotesForDisplay()
+      // We don't need to setNotes here as processNotesForDisplay returns the processed version
+      // The textarea value uses displayNotes which calls processNotesForDisplay
+    }
+  }, [selectedTimezone, notes, timezones])
+
   // Handle keyboard shortcuts in the textarea
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && e.shiftKey) {
