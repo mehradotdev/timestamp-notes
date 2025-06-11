@@ -271,6 +271,7 @@ export default function TimestampNotes() {
     setSelectedTimezone(timezone)
     setIsTimezoneDropdownOpen(false)
     setTimezoneSearchQuery("")
+    setNotes(processNotesForDisplay())
   }
 
   // Get display value for textarea (with converted timestamps)
