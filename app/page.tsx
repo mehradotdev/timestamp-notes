@@ -1,11 +1,9 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect, useRef, type KeyboardEvent } from "react"
 import { parseISO } from "date-fns"
 import { formatInTimeZone } from "date-fns-tz"
-import { Copy } from "lucide-react"
+import { Copy, ChevronDown, Search } from "lucide-react"
 
 export default function TimestampNotes() {
   // Get user's current timezone
@@ -17,7 +15,16 @@ export default function TimestampNotes() {
   const [copySuccess, setCopySuccess] = useState(false)
   const [timezones, setTimezones] = useState<Array<{ value: string; label: string; offset: number }>>([])
 
+  // Timezone search states
+  const [isTimezoneDropdownOpen, setIsTimezoneDropdownOpen] = useState(false)
+  const [timezoneSearchQuery, setTimezoneSearchQuery] = useState("")
+  const [filteredTimezones, setFilteredTimezones] = useState<Array<{ value: string; label: string; offset: number }>>(
+    [],
+  )
+
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const timezoneDropdownRef = useRef<HTMLDivElement>(null)
+  const timezoneSearchRef = useRef<HTMLInputElement>(null)
 
   // Load available timezones with GMT offsets
   useEffect(() => {
@@ -91,6 +98,7 @@ export default function TimestampNotes() {
       timezonesWithOffsets.sort((a, b) => a.offset - b.offset)
 
       setTimezones(timezonesWithOffsets)
+      setFilteredTimezones(timezonesWithOffsets)
     } catch (error) {
       // Fallback for browsers that don't support Intl.supportedValuesOf
       console.error("Error loading timezones:", error)
@@ -114,6 +122,32 @@ export default function TimestampNotes() {
       ]
 
       setTimezones(fallbackTimezones)
+      setFilteredTimezones(fallbackTimezones)
+    }
+  }, [])
+
+  // Filter timezones based on search query
+  useEffect(() => {
+    if (!timezoneSearchQuery.trim()) {
+      setFilteredTimezones(timezones)
+    } else {
+      const filtered = timezones.filter((tz) => tz.label.toLowerCase().includes(timezoneSearchQuery.toLowerCase()))
+      setFilteredTimezones(filtered)
+    }
+  }, [timezoneSearchQuery, timezones])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (timezoneDropdownRef.current && !timezoneDropdownRef.current.contains(event.target as Node)) {
+        setIsTimezoneDropdownOpen(false)
+        setTimezoneSearchQuery("")
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
     }
   }, [])
 
@@ -222,13 +256,18 @@ export default function TimestampNotes() {
       })
   }
 
-  // Handle timezone change
-  const handleTimezoneChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedTimezone(e.target.value)
+  // Handle timezone selection
+  const handleTimezoneSelect = (timezone: string) => {
+    setSelectedTimezone(timezone)
+    setIsTimezoneDropdownOpen(false)
+    setTimezoneSearchQuery("")
   }
 
   // Get display value for textarea (with converted timestamps)
   const displayNotes = processNotesForDisplay()
+
+  // Get the label for the currently selected timezone
+  const selectedTimezoneLabel = timezones.find((tz) => tz.value === selectedTimezone)?.label || selectedTimezone
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col p-4 md:p-8">
@@ -240,18 +279,60 @@ export default function TimestampNotes() {
           <label htmlFor="timezone-selector" className="block text-sm font-medium text-gray-700 mb-1">
             Timezone
           </label>
-          <select
-            id="timezone-selector"
-            className="w-full md:w-64 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            value={selectedTimezone}
-            onChange={handleTimezoneChange}
-          >
-            {timezones.map((tz) => (
-              <option key={tz.value} value={tz.value}>
-                {tz.label}
-              </option>
-            ))}
-          </select>
+          <div className="relative" ref={timezoneDropdownRef}>
+            <button
+              type="button"
+              className="w-full md:w-96 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-left flex items-center justify-between"
+              onClick={() => {
+                setIsTimezoneDropdownOpen(!isTimezoneDropdownOpen)
+                if (!isTimezoneDropdownOpen) {
+                  setTimeout(() => timezoneSearchRef.current?.focus(), 100)
+                }
+              }}
+            >
+              <span className="truncate">{selectedTimezoneLabel}</span>
+              <ChevronDown className="w-4 h-4 text-gray-400" />
+            </button>
+
+            {isTimezoneDropdownOpen && (
+              <div className="absolute z-10 w-full md:w-96 mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
+                {/* Search Input */}
+                <div className="p-2 border-b border-gray-200">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      ref={timezoneSearchRef}
+                      type="text"
+                      placeholder="Search timezones..."
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      value={timezoneSearchQuery}
+                      onChange={(e) => setTimezoneSearchQuery(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Timezone Options */}
+                <div className="max-h-60 overflow-y-auto">
+                  {filteredTimezones.length > 0 ? (
+                    filteredTimezones.map((tz) => (
+                      <button
+                        key={tz.value}
+                        type="button"
+                        className={`w-full px-3 py-2 text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none ${
+                          selectedTimezone === tz.value ? "bg-blue-50 text-blue-600" : "text-gray-900"
+                        }`}
+                        onClick={() => handleTimezoneSelect(tz.value)}
+                      >
+                        <div className="truncate">{tz.label}</div>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-3 py-2 text-gray-500 text-center">No timezones found</div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
           <p className="mt-1 text-sm text-gray-500">Press Shift+Enter to insert timestamp at cursor position</p>
         </div>
 
