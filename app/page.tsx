@@ -15,30 +15,64 @@ export default function TimestampNotes() {
   const [notes, setNotes] = useState("")
   const [selectedTimezone, setSelectedTimezone] = useState(userTimeZone)
   const [copySuccess, setCopySuccess] = useState(false)
-  const [timezones, setTimezones] = useState<string[]>([])
+  const [timezones, setTimezones] = useState<Array<{ value: string; label: string; offset: number }>>([])
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  // Load available timezones
+  // Load available timezones with GMT offsets
   useEffect(() => {
     try {
       // Use Intl API to get all supported timezones
       const supportedTimezones = Intl.supportedValuesOf("timeZone")
-      setTimezones(supportedTimezones)
+
+      // Function to get GMT offset for a timezone
+      const getGMTOffset = (timezone: string): { offset: number; formatted: string } => {
+        const now = new Date()
+        const utc = new Date(now.getTime() + now.getTimezoneOffset() * 60000)
+        const targetTime = new Date(utc.toLocaleString("en-US", { timeZone: timezone }))
+        const offsetMs = targetTime.getTime() - utc.getTime()
+        const offsetMinutes = Math.round(offsetMs / 60000)
+        const offsetHours = Math.floor(Math.abs(offsetMinutes) / 60)
+        const offsetMins = Math.abs(offsetMinutes) % 60
+
+        const sign = offsetMinutes >= 0 ? "+" : "-"
+        const formatted = `GMT${sign}${offsetHours.toString().padStart(2, "0")}:${offsetMins.toString().padStart(2, "0")}`
+
+        return { offset: offsetMinutes, formatted }
+      }
+
+      // Create timezone objects with offset information
+      const timezonesWithOffsets = supportedTimezones.map((tz) => {
+        const { offset, formatted } = getGMTOffset(tz)
+        return {
+          value: tz,
+          label: `${tz} (${formatted})`,
+          offset: offset,
+        }
+      })
+
+      // Sort by GMT offset (ascending: GMT-14:00 to GMT+12:00)
+      timezonesWithOffsets.sort((a, b) => a.offset - b.offset)
+
+      setTimezones(timezonesWithOffsets)
     } catch (error) {
       // Fallback for browsers that don't support Intl.supportedValuesOf
       console.error("Error loading timezones:", error)
-      // Provide a minimal list of common timezones as fallback
-      setTimezones([
-        "UTC",
-        "America/New_York",
-        "America/Los_Angeles",
-        "Europe/London",
-        "Europe/Paris",
-        "Asia/Tokyo",
-        "Asia/Kolkata",
-        "Australia/Sydney",
-      ])
+
+      // Create fallback with common timezones and their offsets
+      const fallbackTimezones = [
+        { value: "Pacific/Midway", label: "Pacific/Midway (GMT-11:00)", offset: -660 },
+        { value: "America/Los_Angeles", label: "America/Los_Angeles (GMT-08:00)", offset: -480 },
+        { value: "America/New_York", label: "America/New_York (GMT-05:00)", offset: -300 },
+        { value: "UTC", label: "UTC (GMT+00:00)", offset: 0 },
+        { value: "Europe/London", label: "Europe/London (GMT+00:00)", offset: 0 },
+        { value: "Europe/Paris", label: "Europe/Paris (GMT+01:00)", offset: 60 },
+        { value: "Asia/Kolkata", label: "Asia/Kolkata (GMT+05:30)", offset: 330 },
+        { value: "Asia/Tokyo", label: "Asia/Tokyo (GMT+09:00)", offset: 540 },
+        { value: "Australia/Sydney", label: "Australia/Sydney (GMT+10:00)", offset: 600 },
+      ]
+
+      setTimezones(fallbackTimezones)
     }
   }, [])
 
@@ -172,8 +206,8 @@ export default function TimestampNotes() {
             onChange={handleTimezoneChange}
           >
             {timezones.map((tz) => (
-              <option key={tz} value={tz}>
-                {tz}
+              <option key={tz.value} value={tz.value}>
+                {tz.label}
               </option>
             ))}
           </select>
