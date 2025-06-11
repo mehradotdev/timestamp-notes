@@ -27,14 +27,50 @@ export default function TimestampNotes() {
 
       // Function to get GMT offset for a timezone
       const getGMTOffset = (timezone: string): { offset: number; formatted: string } => {
-        const now = new Date()
-        const utc = new Date(now.getTime() + now.getTimezoneOffset() * 60000)
-        const targetTime = new Date(utc.toLocaleString("en-US", { timeZone: timezone }))
-        const offsetMs = targetTime.getTime() - utc.getTime()
-        const offsetMinutes = Math.round(offsetMs / 60000)
+        const date = new Date()
+
+        // Get the timezone offset in minutes
+        // Create a date formatter for the target timezone
+        const targetFormatter = new Intl.DateTimeFormat("en-CA", {
+          timeZone: timezone,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false,
+        })
+
+        const utcFormatter = new Intl.DateTimeFormat("en-CA", {
+          timeZone: "UTC",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false,
+        })
+
+        // Format the same date in both timezones
+        const targetTime = targetFormatter.format(date)
+        const utcTime = utcFormatter.format(date)
+
+        // Parse the formatted strings back to dates
+        const targetDate = new Date(
+          targetTime.replace(/(\d{4})-(\d{2})-(\d{2}), (\d{2}):(\d{2}):(\d{2})/, "$1-$2-$3T$4:$5:$6"),
+        )
+        const utcDate = new Date(
+          utcTime.replace(/(\d{4})-(\d{2})-(\d{2}), (\d{2}):(\d{2}):(\d{2})/, "$1-$2-$3T$4:$5:$6"),
+        )
+
+        // Calculate offset in minutes
+        const offsetMinutes = (targetDate.getTime() - utcDate.getTime()) / (1000 * 60)
+
+        // Format the offset
         const offsetHours = Math.floor(Math.abs(offsetMinutes) / 60)
         const offsetMins = Math.abs(offsetMinutes) % 60
-
         const sign = offsetMinutes >= 0 ? "+" : "-"
         const formatted = `GMT${sign}${offsetHours.toString().padStart(2, "0")}:${offsetMins.toString().padStart(2, "0")}`
 
@@ -59,17 +95,22 @@ export default function TimestampNotes() {
       // Fallback for browsers that don't support Intl.supportedValuesOf
       console.error("Error loading timezones:", error)
 
-      // Create fallback with common timezones and their offsets
+      // Create fallback with common timezones and their correct UTC offsets
       const fallbackTimezones = [
         { value: "Pacific/Midway", label: "Pacific/Midway (GMT-11:00)", offset: -660 },
         { value: "America/Los_Angeles", label: "America/Los_Angeles (GMT-08:00)", offset: -480 },
+        { value: "America/Denver", label: "America/Denver (GMT-07:00)", offset: -420 },
+        { value: "America/Chicago", label: "America/Chicago (GMT-06:00)", offset: -360 },
         { value: "America/New_York", label: "America/New_York (GMT-05:00)", offset: -300 },
         { value: "UTC", label: "UTC (GMT+00:00)", offset: 0 },
         { value: "Europe/London", label: "Europe/London (GMT+00:00)", offset: 0 },
         { value: "Europe/Paris", label: "Europe/Paris (GMT+01:00)", offset: 60 },
+        { value: "Europe/Moscow", label: "Europe/Moscow (GMT+03:00)", offset: 180 },
         { value: "Asia/Kolkata", label: "Asia/Kolkata (GMT+05:30)", offset: 330 },
+        { value: "Asia/Shanghai", label: "Asia/Shanghai (GMT+08:00)", offset: 480 },
         { value: "Asia/Tokyo", label: "Asia/Tokyo (GMT+09:00)", offset: 540 },
         { value: "Australia/Sydney", label: "Australia/Sydney (GMT+10:00)", offset: 600 },
+        { value: "Pacific/Auckland", label: "Pacific/Auckland (GMT+12:00)", offset: 720 },
       ]
 
       setTimezones(fallbackTimezones)
