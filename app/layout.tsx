@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "Timestamp Notes",
   description: "Take notes with editable timestamps",
-    generator: 'v0.dev'
+    generator: 'mehraDotDev'
 }
 
 export default function RootLayout({
